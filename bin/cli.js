@@ -130,9 +130,13 @@ const build = async (argv) => {
 
     logger.info('Builds complete')
 
+    process.exit(0)
+
   } else {
 
     logger.error('Build failed')
+
+    process.exit(1)
 
   }
 
@@ -286,9 +290,13 @@ const deploy = async (argv) => {
 
     logger.info('Deployments complete')
 
+    process.exit(0)
+
   } else {
 
     logger.error('Deployment failed')
+
+    process.exit(1)
 
   }
 
