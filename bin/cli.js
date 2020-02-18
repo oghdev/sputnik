@@ -76,11 +76,11 @@ const build = async (argv) => {
 
   })
 
-  sputnik.on('build', ({ build, file, hash, stats }) => {
+  sputnik.on('build', ({ build, file, hash, stats, dependencyHash }) => {
 
     const duration = (stats.endTime - stats.startTime)
 
-    logger.info(`Build for ${file} completed in ${duration}ms. hash=${hash} webpackHash=${stats.hash}`)
+    logger.info(`Build for ${file} completed in ${duration}ms. hash=${hash} dependencyHash=${dependencyHash} webpackHash=${stats.hash}`)
 
   })
 
@@ -94,9 +94,9 @@ const build = async (argv) => {
 
   })
 
-  sputnik.on('build.ready', ({ build, file }) => {
+  sputnik.on('build.ready', ({ build, buildName }) => {
 
-    logger.info(`Build for ${file} ready`)
+    logger.info(`Build for ${buildName} ready`)
 
   })
 

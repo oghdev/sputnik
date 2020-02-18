@@ -115,6 +115,14 @@ class Sputnik extends EventEmitter {
 
       this.emit('lint', { file, dependencies })
 
+      const outputDir = buildDir.replace('build/', 'dist/')
+
+      const dependencyHash = sha256().update(JSON.stringify(dependencies.map((d) => {
+
+        return sha256().update(fs.readFileSync(d)).digest('hex').substr(0, 10)
+
+      }))).digest('hex').substr(0, 10)
+
       if (!this.config.force) {
 
         const [ head, lastCommit ] = await git.silent(true).log().then((log) => log.all)
@@ -163,6 +171,22 @@ class Sputnik extends EventEmitter {
 
         }
 
+        try {
+
+          const currentDepHash = fs.readFileSync(path.resolve(outputDir, `deps.sha256`)).toString()
+
+          if (currentDepHash === dependencyHash) {
+
+            needsbuild = false
+
+          }
+
+        } catch (err) {
+
+          if (err.code !== 'ENOENT') throw err
+
+        }
+
         if (!needsbuild) {
 
           this.emit('build.skip', { build, file })
@@ -171,15 +195,13 @@ class Sputnik extends EventEmitter {
 
           continue
 
-        }else {
+        } else {
 
           this.emit('build.ready', { build, buildName })
 
         }
 
       }
-
-      const outputDir = buildDir.replace('build/', 'dist/')
 
       const webpackConfig = merge(require(webpackrc), {
         output: {
@@ -207,9 +229,11 @@ class Sputnik extends EventEmitter {
 
       const hash = sha256().update(fs.readFileSync(`${outputDir}/main.js`)).digest('hex').substr(0, 10)
 
-      fs.writeFileSync(path.resolve(outputDir, 'package.json'), JSON.stringify({ name: buildName, version: hash }))
+      fs.writeFileSync(path.resolve(outputDir, `deps.sha256`), dependencyHash)
+      fs.writeFileSync(path.resolve(outputDir, 'package.json'), JSON.stringify({ name: buildName, version: hash, deps: dependencyHash }))
 
-      this.emit('build', { build, buildName, file, hash, stats })
+      this.emit('build', { build, buildName, file, dependencyHash, hash, stats })
+
       built.push(build)
 
     }
