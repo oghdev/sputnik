@@ -129,43 +129,51 @@ class Sputnik extends EventEmitter {
 
         let needsbuild
 
-        for (const file of dependencies) {
+        if (!head || !lastCommit) {
 
-          try {
+          needsbuild = true
 
-            const [
-              current,
-              previous
-            ] = await Promise.all([
-              git.silent(true).show([`${head.hash}:${file}`]),
-              git.silent(true).show([`${lastCommit.hash}:${file}`])
-            ])
+        } else {
 
-            const [
-              currentHash,
-              previousHash
-            ] = [
-              sha256().update(current).digest('hex'),
-              sha256().update(previous).digest('hex')
-            ]
+          for (const file of dependencies) {
 
-            const changed = currentHash !== previousHash
+            try {
 
-            this.emit('diff.file', { build, file, changed, currentHash, previousHash })
+              const [
+                current,
+                previous
+              ] = await Promise.all([
+                git.silent(true).show([`${head.hash}:${file}`]),
+                git.silent(true).show([`${lastCommit.hash}:${file}`])
+              ])
 
-            if (changed) {
+              const [
+                currentHash,
+                previousHash
+              ] = [
+                sha256().update(current).digest('hex'),
+                sha256().update(previous).digest('hex')
+              ]
+
+              const changed = currentHash !== previousHash
+
+              this.emit('diff.file', { build, file, changed, currentHash, previousHash })
+
+              if (changed) {
+
+                needsbuild = true
+
+              }
+
+            } catch (err) {
+
+              const errors = [ err ]
+
+              this.emit('diff.error', { errors })
 
               needsbuild = true
 
             }
-
-          } catch (err) {
-
-            const errors = [ err ]
-
-            this.emit('diff.error', { errors })
-
-            needsbuild = true
 
           }
 
@@ -535,6 +543,8 @@ ${fs.readFileSync(val)}`
         kubeyaml = kubeyaml.replace(find, replace)
 
       }
+
+      kubeyaml = kubeyaml.replace(new RegExp(`---${os.EOL}---`, 'g'), '---')
 
       const tmpFile = await tmp.file()
 
