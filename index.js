@@ -358,6 +358,8 @@ ENV APP_VERSION="${deploymentVersion}"
 
 COPY main.js /usr/src/app/main.js
 
+WORKDIR /usr/src/app
+
 CMD ["node", "/usr/src/app/main.js"]
 
           `.trim()
@@ -487,27 +489,35 @@ CMD ["node", "/usr/src/app/main.js"]
 
       try {
 
-        const [
-          current,
-          previous
-        ] = await Promise.all([
-          git.silent(true).show([`${head.hash}:${dependency}`]),
-          git.silent(true).show([`${lastCommit.hash}:${dependency}`])
-        ])
+        if (head && lastCommit) {
 
-        const [
-          currentHash,
-          previousHash
-        ] = [
-          sha256().update(current).digest('hex'),
-          sha256().update(previous).digest('hex')
-        ]
+          const [
+            current,
+            previous
+          ] = await Promise.all([
+            git.silent(true).show([`${head.hash}:${dependency}`]),
+            git.silent(true).show([`${lastCommit.hash}:${dependency}`])
+          ])
 
-        const changed = currentHash !== previousHash
+          const [
+            currentHash,
+            previousHash
+          ] = [
+            sha256().update(current).digest('hex'),
+            sha256().update(previous).digest('hex')
+          ]
 
-        this.emit('diff.dependency', { dependency, changed, currentHash, previousHash })
+          const changed = currentHash !== previousHash
 
-        if (changed || this.config.force) {
+          this.emit('diff.dependency', { dependency, changed, currentHash, previousHash })
+
+          if (changed || this.config.force) {
+
+            deployFiles.indexOf(dependency) === -1 && deployFiles.push(dependency)
+
+          }
+
+        } else {
 
           deployFiles.indexOf(dependency) === -1 && deployFiles.push(dependency)
 
