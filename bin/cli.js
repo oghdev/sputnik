@@ -1,5 +1,7 @@
 require('dotenv').config()
 
+const fs = require('fs')
+const path = require('path')
 const yargs = require('yargs')
 const logger = require('../lib/logger')
 
@@ -151,6 +153,7 @@ const deploy = async (argv) => {
   const registry = argv.registry
   const force = argv.force
   const failFast = argv.failFast
+  const dockerfile = argv.dockerfile ? fs.readFileSync(path.resolve(process.cwd(), argv.dockerfile)) : ''
 
   if (argv.insecureRegistry) {
 
@@ -284,7 +287,7 @@ const deploy = async (argv) => {
 
   logger.info(`Starting deployment`)
 
-  const res = await sputnik.deploy()
+  const res = await sputnik.deploy({ dockerfile })
 
   if (res) {
 
@@ -346,6 +349,10 @@ yargs
       .option('docker-auth', {
         type: 'array',
         description: 'Provide docker credentials for private registies (e.g --docker-auth username:password --docker-auth my.registry.local:5000:username:password)'
+      })
+      .option('dockerfile', {
+        type: 'string',
+        description: 'Path to custom Dockerfile for build. Defaults to a simple alpine node12 image'
       })
       .option('cwd', {
         type: 'string',

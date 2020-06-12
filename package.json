@@ -1,6 +1,6 @@
 {
   "name": "sputnik",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "An opinionated command line tool for building and deploying Node apps to a Kubernetes cluster",
   "main": "index.js",
   "bin": {
@@ -20,11 +20,13 @@
     "hash.js": "^1.1.7",
     "madge": "^3.6.0",
     "merge-deep": "^3.0.2",
+    "recursive-readdir": "^2.2.2",
     "shelljs": "^0.8.3",
     "shortid32": "^0.1.1",
     "simple-git": "^1.129.0",
     "tar-stream": "^2.1.0",
     "tmp-promise": "^2.0.2",
+    "tplv": "^1.0.0",
     "webpack": "^4.41.4",
     "winston": "^3.2.1",
     "yargs": "^15.0.2"

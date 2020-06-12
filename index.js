@@ -17,6 +17,8 @@ const tar = require('tar-stream')
 const tmp = require('tmp-promise')
 const shell = require('shelljs')
 const os = require('os')
+const tplv = require('tplv')
+const recursive = require('recursive-readdir')
 
 class Sputnik extends EventEmitter {
 
@@ -252,7 +254,7 @@ class Sputnik extends EventEmitter {
 
   }
 
-  async deploy () {
+  async deploy (argv) {
 
     const self = this
 
@@ -305,6 +307,7 @@ class Sputnik extends EventEmitter {
       const deploymentVersion = manifest.version
 
       const file = path.resolve(deploymentDir, deployment).replace(`${this.config.cwd}/`, '')
+      const deploymentFiles = (await recursive(deploymentDir)).map((f) => f.replace(`${deploymentDir}/`, ''))
 
       const [ index, ...parts ] = registry.split('/')
 
@@ -349,8 +352,9 @@ class Sputnik extends EventEmitter {
 
           needsdeploy = true
 
-          const dockerfile = `
-
+          const dockerfile = argv.dockerfile
+            ? tplv.render(argv.dockerfile, { deploymentName, deploymentVersion })
+            : `
 FROM node:12-alpine
 
 ENV APP_NAME="${deploymentName}"
@@ -367,80 +371,93 @@ CMD ["node", "/usr/src/app/main.js"]
           const pack = tar.pack()
 
           await pack.entry({ name: 'Dockerfile' }, dockerfile)
-          await pack.entry({ name: 'main.js' }, fs.readFileSync(deployment))
+
+          for (const file of deploymentFiles) {
+
+            await pack.entry({ name: file, type: 'file' }, fs.readFileSync(path.resolve(deploymentDir, file)))
+
+          }
 
           await pack.finalize()
 
-          try {
+          pack.pipe(fs.createWriteStream(path.resolve(process.cwd(), './tarpack.tar')))
 
-            const stream = await docker.buildImage(pack, { t: tag })
+          const buildStream = await docker.buildImage(pack, { t: tag })
 
-            await (new Promise((resolve, reject) => {
+          await (new Promise((resolve, reject) => {
 
-              const progress = ({ stream, aux }) => {
+            const progress = (e) => {
 
-                if (stream) {
+              const { error, stream, aux } = e
 
-                  this.emit('deployment.image.build', { deployment, file, stdout: stream })
+              if (error) {
 
-                }
-
-                if (aux) {
-
-                  const hash = aux.ID
-
-                  this.emit('deployment.image.build.complete', { deployment, file, hash })
-
-                }
+                return reject(new Error(error))
 
               }
 
-              docker.modem.followProgress(stream, resolve, progress)
+              if (stream) {
 
-              stream.on('error', reject)
-
-            }))
-
-          } finally {}
-
-          try {
-
-            const image = await docker.getImage(tag)
-            const stream = await image.push({ registry, authconfig })
-
-            await (new Promise((resolve, reject) => {
-
-              const progress = (e) => {
-
-                const { id, status, progressDetail } = e
-
-                if (status && (status.toLowerCase() === 'pushed' || status.toLowerCase() === 'layer already exists')) {
-
-                  const layer = id
-
-                  this.emit('deployment.image.pushed', { deployment, file, tag, layer })
-
-                } else if (status && status.toLowerCase() === 'pushing') {
-
-                  const layer = id
-
-                  const progress = progressDetail.current
-                    ? Math.floor((progressDetail.current / progressDetail.current) * 100)
-                    : 0
-
-                  this.emit('deployment.image.push', { deployment, file, tag, layer, progress })
-
-                }
+                this.emit('deployment.image.build', { deployment, file, stdout: stream })
 
               }
 
-              docker.modem.followProgress(stream, resolve, progress)
+              if (aux) {
 
-              stream.on('error', reject)
+                const hash = aux.ID
 
-            }))
+                this.emit('deployment.image.build.complete', { deployment, file, hash })
 
-          } finally {}
+              }
+
+            }
+
+            docker.modem.followProgress(buildStream, resolve, progress)
+
+            buildStream.on('error', reject)
+
+          }))
+
+          const image = await docker.getImage(tag)
+          const pushStream = await image.push({ registry, authconfig })
+
+          await (new Promise((resolve, reject) => {
+
+            const progress = (e) => {
+
+              const { id, error, status, progressDetail } = e
+
+              if (error) {
+
+                return reject(new Error(error))
+
+              }
+
+              if (status && (status.toLowerCase() === 'pushed' || status.toLowerCase() === 'layer already exists')) {
+
+                const layer = id
+
+                this.emit('deployment.image.pushed', { deployment, file, tag, layer })
+
+              } else if (status && status.toLowerCase() === 'pushing') {
+
+                const layer = id
+
+                const progress = progressDetail.current
+                  ? Math.floor((progressDetail.current / progressDetail.current) * 100)
+                  : 0
+
+                this.emit('deployment.image.push', { deployment, file, tag, layer, progress })
+
+              }
+
+            }
+
+            docker.modem.followProgress(pushStream, resolve, progress)
+
+            pushStream.on('error', reject)
+
+          }))
 
         } else {
 
