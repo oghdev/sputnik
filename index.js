@@ -567,7 +567,7 @@ ${fs.readFileSync(val)}`
         const find = path.dirname(deployment).replace(`${this.config.cwd}/`, '')
         const replace = tag
 
-        kubeyaml = kubeyaml.replace(find, replace)
+        kubeyaml = kubeyaml.replace(new RegExp(find, 'g'), replace)
 
       }
 
