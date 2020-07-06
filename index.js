@@ -380,8 +380,6 @@ CMD ["node", "/usr/src/app/main.js"]
 
           await pack.finalize()
 
-          pack.pipe(fs.createWriteStream(path.resolve(process.cwd(), './tarpack.tar')))
-
           const buildStream = await docker.buildImage(pack, { t: tag })
 
           await (new Promise((resolve, reject) => {
