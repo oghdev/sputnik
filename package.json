@@ -1,6 +1,6 @@
 {
   "name": "sputnik",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "An opinionated command line tool for building and deploying Node apps to a Kubernetes cluster",
   "main": "index.js",
   "bin": {
