@@ -23,7 +23,7 @@
     "recursive-readdir": "^2.2.2",
     "shelljs": "^0.8.3",
     "shortid32": "^0.1.1",
-    "simple-git": "^1.129.0",
+    "simple-git": "^3.16.0",
     "tar-stream": "^2.1.0",
     "tmp-promise": "^2.0.2",
     "tplv": "^1.0.0",
